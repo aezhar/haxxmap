@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/alphadose/haxmap"
+	"github.com/aezhar/haxxmap"
 	"github.com/cornelk/hashmap"
 	"github.com/puzpuzpuz/xsync/v2"
 )
@@ -15,8 +15,8 @@ const (
 	mapSize         = 8
 )
 
-func setupHaxMap() *haxmap.Map[uintptr, uintptr] {
-	m := haxmap.New[uintptr, uintptr](mapSize)
+func setupHaxMap() *haxxmap.Map[uintptr, uintptr] {
+	m := haxxmap.New[uintptr, uintptr](mapSize)
 	for i := uintptr(0); i < epochs; i++ {
 		m.Set(i, i)
 	}

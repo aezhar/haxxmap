@@ -1,3 +1,5 @@
+github.com/aezhar/haxxmap v0.0.0-20230714125323-75eb234b2350 h1:kUJWYz2F9MggLyUYGM2vCYVwAfhMkpBTWD/8gJFDWkY=
+github.com/aezhar/haxxmap v0.0.0-20230714125323-75eb234b2350/go.mod h1:yN1RRzNCcelH0aR4Tn8FJB2iDEn+omLoXAbxEjPjrK0=
 github.com/cornelk/hashmap v1.0.8 h1:nv0AWgw02n+iDcawr5It4CjQIAcdMMKRrs10HOJYlrc=
 github.com/cornelk/hashmap v1.0.8/go.mod h1:RfZb7JO3RviW/rT6emczVuC/oxpdz4UsSB2LJSclR1k=
 github.com/puzpuzpuz/xsync/v2 v2.3.1 h1:oAm/nI4ZC+FqOM7t2fnA7DaQVsuj4fO2KcTcNTS1Q9Y=
