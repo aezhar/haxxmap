@@ -1,4 +1,4 @@
-package haxmap
+package haxxmap
 
 import "sync/atomic"
 

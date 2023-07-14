@@ -1,9 +1,5 @@
 package main
 
-import (
-	"github.com/alphadose/haxmap"
-)
-
 func main() {
 	const initialSize = 1 << 10
 

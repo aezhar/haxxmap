@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
-
-	"github.com/alphadose/haxmap"
 )
 
 type data struct {

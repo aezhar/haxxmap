@@ -1,9 +1,5 @@
 package main
 
-import (
-	"github.com/alphadose/haxmap"
-)
-
 // your custom hash function
 func customStringHasher(s string) uintptr {
 	return uintptr(len(s))

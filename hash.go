@@ -1,4 +1,4 @@
-package haxmap
+package haxxmap
 
 /*
 From https://github.com/cespare/xxhash

@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/alphadose/haxmap"
 )
 
 func main() {
