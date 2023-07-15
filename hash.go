@@ -310,3 +310,56 @@ func (m *Map[K, V]) setDefaultHasher() {
 		}
 	}
 }
+
+func comparator[T comparable](l, r T) bool { return l == r }
+
+var (
+	boolComparator       = comparator[bool]
+	stringComparator     = comparator[string]
+	byteComparator       = comparator[uint8]
+	wordComparator       = comparator[uint16]
+	dwordComparator      = comparator[uint32]
+	qwordComparator      = comparator[uint64]
+	float32Comparator    = comparator[float32]
+	float64Comparator    = comparator[float64]
+	complex64Comparator  = comparator[complex64]
+	complex128Comparator = comparator[complex128]
+)
+
+func defaultComparator[K any]() func(l, r K) bool {
+	switch reflect.TypeOf(*new(K)).Kind() {
+	case reflect.String:
+		return *(*func(l, r K) bool)(unsafe.Pointer(&stringComparator))
+	case reflect.Bool:
+		return *(*func(l, r K) bool)(unsafe.Pointer(&boolComparator))
+	case reflect.Int, reflect.Uint, reflect.Uintptr, reflect.UnsafePointer:
+		switch intSizeBytes {
+		case 2:
+			return *(*func(l, r K) bool)(unsafe.Pointer(&wordComparator))
+		case 4:
+			return *(*func(l, r K) bool)(unsafe.Pointer(&dwordComparator))
+		case 8:
+			return *(*func(l, r K) bool)(unsafe.Pointer(&qwordComparator))
+		}
+	case reflect.Int8, reflect.Uint8:
+		return *(*func(l, r K) bool)(unsafe.Pointer(&byteComparator))
+	case reflect.Int16, reflect.Uint16:
+		return *(*func(l, r K) bool)(unsafe.Pointer(&wordComparator))
+	case reflect.Int32, reflect.Uint32:
+		return *(*func(l, r K) bool)(unsafe.Pointer(&dwordComparator))
+	case reflect.Int64, reflect.Uint64:
+		return *(*func(l, r K) bool)(unsafe.Pointer(&qwordComparator))
+	case reflect.Float32:
+		return *(*func(l, r K) bool)(unsafe.Pointer(&float32Comparator))
+	case reflect.Float64:
+		return *(*func(l, r K) bool)(unsafe.Pointer(&float64Comparator))
+	case reflect.Complex64:
+		return *(*func(l, r K) bool)(unsafe.Pointer(&complex64Comparator))
+	case reflect.Complex128:
+		return *(*func(l, r K) bool)(unsafe.Pointer(&complex128Comparator))
+	}
+
+	return func(l, r K) bool {
+		return reflect.DeepEqual(l, r)
+	}
+}

@@ -1,14 +1,11 @@
 package haxxmap
 
 import (
-	"encoding/json"
 	"reflect"
 	"sort"
 	"strconv"
 	"sync/atomic"
 	"unsafe"
-
-	"golang.org/x/exp/constraints"
 )
 
 const (
@@ -29,9 +26,7 @@ const (
 )
 
 type (
-	hashable interface {
-		constraints.Integer | constraints.Float | constraints.Complex | ~string | uintptr | ~unsafe.Pointer
-	}
+	hashable any
 
 	// metadata of the hashmap
 	metadata[K hashable, V any] struct {
@@ -46,11 +41,12 @@ type (
 
 	// Map implements the concurrent hashmap
 	Map[K hashable, V any] struct {
-		listHead *element[K, V] // Harris lock-free list of elements in ascending order of hash
-		hasher   func(K) uintptr
-		metadata atomicPointer[metadata[K, V]] // atomic.Pointer for safe access even during resizing
-		resizing atomicUint32
-		numItems atomicUintptr
+		listHead   *element[K, V] // Harris lock-free list of elements in ascending order of hash
+		hasher     func(K) uintptr
+		comparator func(l, r K) bool
+		metadata   atomicPointer[metadata[K, V]] // atomic.Pointer for safe access even during resizing
+		resizing   atomicUint32
+		numItems   atomicUintptr
 	}
 
 	// used in deletion of map elements
@@ -62,7 +58,8 @@ type (
 
 // New returns a new HashMap instance with an optional specific initialization size
 func New[K hashable, V any](size ...uintptr) *Map[K, V] {
-	m := &Map[K, V]{listHead: newListHead[K, V]()}
+	m := &Map[K, V]{}
+	m.listHead = newListHead[K, V](&m.comparator)
 	m.numItems.Store(0)
 	if len(size) > 0 {
 		m.allocate(size[0])
@@ -70,6 +67,7 @@ func New[K hashable, V any](size ...uintptr) *Map[K, V] {
 		m.allocate(defaultSize)
 	}
 	m.setDefaultHasher()
+	m.comparator = defaultComparator[K]()
 	return m
 }
 
@@ -89,7 +87,7 @@ func (m *Map[K, V]) Del(keys ...K) {
 			existing = m.listHead.next()
 		}
 		for ; existing != nil && existing.keyHash <= h; existing = existing.next() {
-			if existing.key == keys[0] {
+			if m.comparator(existing.key, keys[0]) {
 				if existing.remove() { // mark node for lazy removal on next pass
 					m.removeItemFromIndex(existing) // remove node from map index
 				}
@@ -117,7 +115,7 @@ func (m *Map[K, V]) Del(keys ...K) {
 		}
 
 		for elem != nil && iter < size {
-			if elem.keyHash == delQ[iter].keyHash && elem.key == delQ[iter].key {
+			if elem.keyHash == delQ[iter].keyHash && m.comparator(elem.key, delQ[iter].key) {
 				if elem.remove() { // mark node for lazy removal on next pass
 					m.removeItemFromIndex(elem) // remove node from map index
 				}
@@ -138,7 +136,7 @@ func (m *Map[K, V]) Get(key K) (value V, ok bool) {
 	h := m.hasher(key)
 	// inline search
 	for elem := m.metadata.Load().indexElement(h); elem != nil && elem.keyHash <= h; elem = elem.nextPtr.Load() {
-		if elem.key == key {
+		if m.comparator(elem.key, key) {
 			value, ok = *elem.value.Load(), !elem.isDeleted()
 			return
 		}
@@ -163,12 +161,12 @@ func (m *Map[K, V]) Set(key K, value V) {
 	if existing == nil || existing.keyHash > h {
 		existing = m.listHead
 	}
-	if alloc, created = existing.inject(h, key, valPtr); alloc != nil {
+	if alloc, created = existing.inject(h, key, valPtr, &m.comparator); alloc != nil {
 		if created {
 			m.numItems.Add(1)
 		}
 	} else {
-		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr) {
+		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr, &m.comparator) {
 		}
 		if created {
 			m.numItems.Add(1)
@@ -192,7 +190,7 @@ func (m *Map[K, V]) GetOrSet(key K, value V) (actual V, loaded bool) {
 	)
 	// try to get the element if present
 	for elem := existing; elem != nil && elem.keyHash <= h; elem = elem.nextPtr.Load() {
-		if elem.key == key && !elem.isDeleted() {
+		if m.comparator(elem.key, key) && !elem.isDeleted() {
 			actual, loaded = *elem.value.Load(), true
 			return
 		}
@@ -209,12 +207,12 @@ func (m *Map[K, V]) GetOrSet(key K, value V) (actual V, loaded bool) {
 	if existing == nil || existing.keyHash > h {
 		existing = m.listHead
 	}
-	if alloc, created = existing.inject(h, key, valPtr); alloc != nil {
+	if alloc, created = existing.inject(h, key, valPtr, &m.comparator); alloc != nil {
 		if created {
 			m.numItems.Add(1)
 		}
 	} else {
-		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr) {
+		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr, &m.comparator) {
 		}
 		if created {
 			m.numItems.Add(1)
@@ -238,7 +236,7 @@ func (m *Map[K, V]) GetOrCompute(key K, valueFn func() V) (actual V, loaded bool
 	)
 	// try to get the element if present
 	for elem := existing; elem != nil && elem.keyHash <= h; elem = elem.nextPtr.Load() {
-		if elem.key == key && !elem.isDeleted() {
+		if m.comparator(elem.key, key) && !elem.isDeleted() {
 			actual, loaded = *elem.value.Load(), true
 			return
 		}
@@ -256,12 +254,12 @@ func (m *Map[K, V]) GetOrCompute(key K, valueFn func() V) (actual V, loaded bool
 	if existing == nil || existing.keyHash > h {
 		existing = m.listHead
 	}
-	if alloc, created = existing.inject(h, key, valPtr); alloc != nil {
+	if alloc, created = existing.inject(h, key, valPtr, &m.comparator); alloc != nil {
 		if created {
 			m.numItems.Add(1)
 		}
 	} else {
-		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr) {
+		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr, &m.comparator) {
 		}
 		if created {
 			m.numItems.Add(1)
@@ -285,7 +283,7 @@ func (m *Map[K, V]) GetAndDel(key K) (value V, ok bool) {
 		existing = m.listHead.next()
 	}
 	for ; existing != nil && existing.keyHash <= h; existing = existing.next() {
-		if existing.key == key {
+		if m.comparator(existing.key, key) {
 			value, ok = *existing.value.Load(), !existing.isDeleted()
 			if existing.remove() {
 				m.removeItemFromIndex(existing)
@@ -355,6 +353,12 @@ func (m *Map[K, V]) SetHasher(hs func(K) uintptr) {
 	m.hasher = hs
 }
 
+// SetComparator sets the function used for comparing keys to the
+// one provided by the user
+func (m *Map[K, V]) SetComparator(cmp func(l, r K) bool) {
+	m.comparator = cmp
+}
+
 // Len returns the number of key-value pairs within the map
 func (m *Map[K, V]) Len() uintptr {
 	return m.numItems.Load()
@@ -364,28 +368,6 @@ func (m *Map[K, V]) Len() uintptr {
 func (m *Map[K, V]) Fillrate() uintptr {
 	data := m.metadata.Load()
 	return (data.count.Load() * 100) / uintptr(len(data.index))
-}
-
-// MarshalJSON implements the json.Marshaler interface.
-func (m *Map[K, V]) MarshalJSON() ([]byte, error) {
-	gomap := make(map[K]V)
-	for i := m.listHead.next(); i != nil; i = i.next() {
-		gomap[i.key] = *i.value.Load()
-	}
-	return json.Marshal(gomap)
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (m *Map[K, V]) UnmarshalJSON(i []byte) error {
-	gomap := make(map[K]V)
-	err := json.Unmarshal(i, &gomap)
-	if err != nil {
-		return err
-	}
-	for k, v := range gomap {
-		m.Set(k, v)
-	}
-	return nil
 }
 
 // allocate map with the given size
