@@ -1,8 +1,12 @@
 github.com/aezhar/haxxmap v0.0.0-20230714125323-75eb234b2350 h1:kUJWYz2F9MggLyUYGM2vCYVwAfhMkpBTWD/8gJFDWkY=
 github.com/aezhar/haxxmap v0.0.0-20230714125323-75eb234b2350/go.mod h1:yN1RRzNCcelH0aR4Tn8FJB2iDEn+omLoXAbxEjPjrK0=
+github.com/alphadose/haxmap v1.2.0 h1:noGrAmCE+gNheZ4KpW+sYj9W5uMcO1UAjbAq9XBOAfM=
+github.com/alphadose/haxmap v1.2.0/go.mod h1:rjHw1IAqbxm0S3U5tD16GoKsiAd8FWx5BJ2IYqXwgmM=
 github.com/cornelk/hashmap v1.0.8 h1:nv0AWgw02n+iDcawr5It4CjQIAcdMMKRrs10HOJYlrc=
 github.com/cornelk/hashmap v1.0.8/go.mod h1:RfZb7JO3RviW/rT6emczVuC/oxpdz4UsSB2LJSclR1k=
 github.com/puzpuzpuz/xsync/v2 v2.3.1 h1:oAm/nI4ZC+FqOM7t2fnA7DaQVsuj4fO2KcTcNTS1Q9Y=
 github.com/puzpuzpuz/xsync/v2 v2.3.1/go.mod h1:gD2H2krq/w52MfPLE+Uy64TzJDVY7lP2znR9qmR35kU=
 golang.org/x/exp v0.0.0-20221031165847-c99f073a8326 h1:QfTh0HpN6hlw6D3vu8DAwC8pBIwikq0AI1evdm+FksE=
 golang.org/x/exp v0.0.0-20221031165847-c99f073a8326/go.mod h1:CxIveKay+FTh1D0yPZemJVgC/95VzuuOLq5Qi4xnoYc=
+golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 h1:MGwJjxBy0HJshjDNfLsYO8xppfqWlA5ZT9OhtUUhTNw=
+golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1/go.mod h1:FXUEEKJgO7OQYeo8N01OfiKP8RXMtf6e8aTskBGqWdc=

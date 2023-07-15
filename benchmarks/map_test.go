@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/aezhar/haxxmap"
+	"github.com/alphadose/haxmap"
 	"github.com/cornelk/hashmap"
 	"github.com/puzpuzpuz/xsync/v2"
 )
@@ -15,7 +16,15 @@ const (
 	mapSize         = 8
 )
 
-func setupHaxMap() *haxxmap.Map[uintptr, uintptr] {
+func setupHaxMap() *haxmap.Map[uintptr, uintptr] {
+	m := haxmap.New[uintptr, uintptr](mapSize)
+	for i := uintptr(0); i < epochs; i++ {
+		m.Set(i, i)
+	}
+	return m
+}
+
+func setupHaxxMap() *haxxmap.Map[uintptr, uintptr] {
 	m := haxxmap.New[uintptr, uintptr](mapSize)
 	for i := uintptr(0); i < epochs; i++ {
 		m.Set(i, i)
@@ -64,6 +73,46 @@ func BenchmarkHaxMapReadsOnly(b *testing.B) {
 
 func BenchmarkHaxMapReadsWithWrites(b *testing.B) {
 	m := setupHaxMap()
+	var writer uintptr
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		// use 1 thread as writer
+		if atomic.CompareAndSwapUintptr(&writer, 0, 1) {
+			for pb.Next() {
+				for i := uintptr(0); i < epochs; i++ {
+					m.Set(i, i)
+				}
+			}
+		} else {
+			for pb.Next() {
+				for i := uintptr(0); i < epochs; i++ {
+					j, _ := m.Get(i)
+					if j != i {
+						b.Fail()
+					}
+				}
+			}
+		}
+	})
+}
+
+func BenchmarkHaxxMapReadsOnly(b *testing.B) {
+	m := setupHaxxMap()
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for i := uintptr(0); i < epochs; i++ {
+				j, _ := m.Get(i)
+				if j != i {
+					b.Fail()
+				}
+			}
+		}
+	})
+}
+
+func BenchmarkHaxxMapReadsWithWrites(b *testing.B) {
+	m := setupHaxxMap()
 	var writer uintptr
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
