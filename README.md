@@ -106,6 +106,7 @@ From the above results it is evident that `haxmap` takes the least time, memory 
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/aezhar/haxxmap"
@@ -129,18 +130,21 @@ func main() {
 	m.SetComparator(customStringCompare) // this overrides the default key comparison function
 
 	m.Set("one", "1")
-	val, ok := m.Get("One")
-	if ok {
-		println(val)
+
+	if val, ok := m.Get("One"); ok {
+		fmt.Println(val)
 	}
 }
 ```
 
 2. You can pre-allocate the size of the map which will improve performance in some cases.
+
 ```go
 package main
 
 import (
+	"fmt"
+
 	"github.com/aezhar/haxxmap"
 )
 
@@ -152,9 +156,9 @@ func main() {
 	m := haxxmap.New[int, string](initialSize)
 
 	m.Set(1, "1")
-	val, ok := m.Get(1)
-	if ok {
-		println(val)
+
+	if val, ok := m.Get(1); ok {
+		fmt.Println(val)
 	}
 }
 ```
