@@ -1,18 +1,20 @@
-# HaxMap
+# HaxxMap
 
-[![Main Actions Status](https://github.com/alphadose/haxmap/workflows/Go/badge.svg)](https://github.com/alphadose/haxmap/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/alphadose/haxmap)](https://goreportcard.com/report/github.com/alphadose/haxmap)
+[![Main Actions Status](https://github.com/aezhar/haxxmap/workflows/Go/badge.svg)](https://github.com/aezhar/haxxmap/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/aezhar/haxxmap)](https://goreportcard.com/report/github.com/aezhar/haxxmap)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE.md)
 > A lightning fast concurrent hashmap
 
-The hashing algorithm used was [xxHash](https://github.com/Cyan4973/xxHash) and the hashmap's buckets were implemented using [Harris lock-free list](https://www.cl.cam.ac.uk/research/srg/netos/papers/2001-caslists.pdf)
+This is a fork of the original [haxmap](https://github.com/alphadose/haxmap) package developed by [alphadose](https://github.com/alphadose). The goal of this fork is to allow for more customization of the hashmap's behavior at the expense of execution time.  
+
+The default hashing algorithm for strings used is [xxHash](https://github.com/Cyan4973/xxHash) and the hashmap's buckets are implemented using [Harris lock-free list](https://www.cl.cam.ac.uk/research/srg/netos/papers/2001-caslists.pdf)
 
 ## Installation
 
 You need Golang [1.18.x](https://go.dev/dl/) or above
 
 ```bash
-$ go get github.com/alphadose/haxmap
+$ go get github.com/aezhar/haxxmap
 ```
 
 ## Usage
@@ -23,12 +25,12 @@ package main
 import (
 	"fmt"
 
-	"github.com/alphadose/haxmap"
+	"github.com/aezhar/haxxmap"
 )
 
 func main() {
 	// initialize map with key type `int` and value type `string`
-	mep := haxmap.New[int, string]()
+	mep := haxxmap.New[int, string]()
 
 	// set a value (overwrites existing value if present)
 	mep.Set(1, "one")
@@ -64,9 +66,9 @@ func main() {
 
 ## Benchmarks
 
-Benchmarks were performed against [golang sync.Map](https://pkg.go.dev/sync#Map) and the latest [cornelk-hashmap](https://github.com/cornelk/hashmap)
+Benchmarks are performed against [golang sync.Map](https://pkg.go.dev/sync#Map) and the latest [cornelk-hashmap](https://github.com/cornelk/hashmap)
 
-All results were computed from [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) of 20 runs (code available [here](./benchmarks))
+All results are computed from [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) of 20 runs (code available [here](./benchmarks))
 
 1. Concurrent Reads Only
 ```
@@ -98,12 +100,15 @@ From the above results it is evident that `haxmap` takes the least time, memory 
 
 ## Tips
 
-1. HaxMap by default uses [xxHash](https://github.com/cespare/xxhash) algorithm, but you can override this and plug-in your own custom hash function. Beneath lies an example for the same.
+1. HaxMap by default uses [xxHash](https://github.com/cespare/xxhash) algorithm and compares each value directly, but you can override this and plug-in your own custom hash and comparison function. Beneath lies an example for the same.
+
 ```go
 package main
 
 import (
-	"github.com/alphadose/haxmap"
+	"strings"
+
+	"github.com/aezhar/haxxmap"
 )
 
 // your custom hash function
@@ -112,12 +117,19 @@ func customStringHasher(s string) uintptr {
 	return uintptr(len(s))
 }
 
+// your custom comparison function
+// This allows for more complex key types to be compared
+func customStringCompare(l, r string) bool {
+	return strings.ToLower(l) == strings.ToLower(r)
+}
+
 func main() {
-	m := haxmap.New[string, string]() // initialize a string-string map
-	m.SetHasher(customStringHasher) // this overrides the default xxHash algorithm
+	m := haxxmap.New[string, string]()   // initialize a string-string map
+	m.SetHasher(customStringHasher)      // this overrides the default xxHash algorithm
+	m.SetComparator(customStringCompare) // this overrides the default key comparison function
 
 	m.Set("one", "1")
-	val, ok := m.Get("one")
+	val, ok := m.Get("One")
 	if ok {
 		println(val)
 	}
@@ -129,7 +141,7 @@ func main() {
 package main
 
 import (
-	"github.com/alphadose/haxmap"
+	"github.com/aezhar/haxxmap"
 )
 
 func main() {
@@ -137,7 +149,7 @@ func main() {
 
 	// pre-allocating the size of the map will prevent all grow operations
 	// until that limit is hit thereby improving performance
-	m := haxmap.New[int, string](initialSize)
+	m := haxxmap.New[int, string](initialSize)
 
 	m.Set(1, "1")
 	val, ok := m.Get(1)
