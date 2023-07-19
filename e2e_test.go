@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/cespare/xxhash"
 )
 
 type Animal struct {
@@ -397,6 +399,24 @@ func TestSwap(t *testing.T) {
 		t.Error("Key doesnt exists")
 	}
 	if val != 2 {
+		t.Error("New value not set")
+	}
+}
+
+func TestByteSliceKey(t *testing.T) {
+	m := New[[]byte, string]()
+	m.SetHasher(func(addr []byte) uintptr {
+		return uintptr(xxhash.Sum64(addr))
+	})
+
+	m.Set([]byte{0x00, 0x00, 0x5e, 0x00, 0x53, 0x01}, "hostA")
+	m.Set([]byte{0x00, 0x00, 0x5e, 0x00, 0x53, 0x02}, "hostB")
+
+	val, ok := m.Get([]byte{0x00, 0x00, 0x5e, 0x00, 0x53, 0x01})
+	if !ok {
+		t.Error("Key doesnt exists")
+	}
+	if val != "hostA" {
 		t.Error("New value not set")
 	}
 }
