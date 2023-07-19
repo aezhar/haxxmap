@@ -66,41 +66,55 @@ func main() {
 
 ## Benchmarks
 
-Benchmarks are performed against [golang sync.Map](https://pkg.go.dev/sync#Map) and the latest [cornelk-hashmap](https://github.com/cornelk/hashmap)
+Benchmarks are performed against other implementations of thread-safe hashmaps:
+* [sync.Map](https://pkg.go.dev/sync#Map)
+* [github.com/cornelk/hashmap](https://github.com/cornelk/hashmap)
+* [github.com/puzpuzpuz/xsync](https://github.com/puzpuzpuz/xsync)
+* [github.com/alphadose/haxmap](https://github.com/alphadose/haxmap)
 
 All results are computed from [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) of 20 runs (code available [here](./benchmarks))
 
 1. Concurrent Reads Only
 ```
-name                         time/op
-HaxMapReadsOnly-8            6.94µs ± 4%
-GoSyncMapReadsOnly-8         21.5µs ± 3%
-CornelkMapReadsOnly-8        8.39µs ± 8%
+cpu: AMD Ryzen 7 5800X 8-Core Processor
+                       │   sec/op    │
+HaxMapReadsOnly-16       2.685µ ± 6%
+HaxxMapReadsOnly-16      3.412µ ± 3%
+GoSyncMapReadsOnly-16    10.57µ ± 2%
+CornelkMapReadsOnly-16   3.008µ ± 3%
+XsyncMapReadsOnly-16     2.127µ ± 4%
+
 ```
 
 2. Concurrent Reads with Writes
 ```
-name                         time/op
-HaxMapReadsWithWrites-8      8.23µs ± 3%
-GoSyncMapReadsWithWrites-8   25.0µs ± 2%
-CornelkMapReadsWithWrites-8  8.83µs ±20%
+cpu: AMD Ryzen 7 5800X 8-Core Processor
+                             │   sec/op    │
+HaxMapReadsWithWrites-16       3.216µ ± 7%
+HaxxMapReadsWithWrites-16      3.778µ ± 4%
+GoSyncMapReadsWithWrites-16    11.74µ ± 1%
+CornelkMapReadsWithWrites-16   3.545µ ± 5%
+XsyncMapReadsWithWrites-16     2.373µ ± 1%
 
-name                         alloc/op
-HaxMapReadsWithWrites-8      1.25kB ± 5%
-GoSyncMapReadsWithWrites-8   6.20kB ± 7%
-CornelkMapReadsWithWrites-8  1.53kB ± 9%
+                             │     B/op      │
+HaxMapReadsWithWrites-16         260.0 ±  9%
+HaxxMapReadsWithWrites-16        332.0 ± 18%
+GoSyncMapReadsWithWrites-16    1.831Ki ± 12%
+CornelkMapReadsWithWrites-16     307.5 ± 12%
+XsyncMapReadsWithWrites-16       344.0 ± 10%
 
-name                         allocs/op
-HaxMapReadsWithWrites-8         156 ± 5%
-GoSyncMapReadsWithWrites-8      574 ± 7%
-CornelkMapReadsWithWrites-8     191 ± 9%
+                             │  allocs/op  │
+HaxMapReadsWithWrites-16       32.50 ± 11%
+HaxxMapReadsWithWrites-16      41.00 ± 17%
+GoSyncMapReadsWithWrites-16    173.5 ± 12%
+CornelkMapReadsWithWrites-16   38.00 ± 11%
+XsyncMapReadsWithWrites-16     21.00 ± 10%
+
 ```
-
-From the above results it is evident that `haxmap` takes the least time, memory and allocations in all cases making it the best golang concurrent hashmap in this period of time
 
 ## Tips
 
-1. HaxMap by default uses [xxHash](https://github.com/cespare/xxhash) algorithm and compares each value directly, but you can override this and plug-in your own custom hash and comparison function. Beneath lies an example for the same.
+1. HaxxMap by default uses [xxHash](https://github.com/cespare/xxhash) algorithm and compares each value directly, but this behavior can be overriden by specifying a different hash and comparison function before using the hashmap. Beneath lies an example for the same.
 
 ```go
 package main
