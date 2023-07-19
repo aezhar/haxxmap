@@ -26,10 +26,26 @@ const (
 )
 
 type (
-	hashable any
+	Hashable any
+
+	// HashFn provides a hash for the given key
+	HashFn[K Hashable] func(K) uintptr
+	// EqualFn tests whenever the 2 given keys are equal
+	EqualFn[K Hashable] func(l, r K) bool
+
+	// Map implements the concurrent hashmap
+	Map[K Hashable, V any] struct {
+		hasher     HashFn[K]
+		comparator EqualFn[K]
+
+		listHead *element[K, V]                // Harris lock-free list of elements in ascending order of hash
+		metadata atomicPointer[metadata[K, V]] // atomic.Pointer for safe access even during resizing
+		resizing atomicUint32
+		numItems atomicUintptr
+	}
 
 	// metadata of the hashmap
-	metadata[K hashable, V any] struct {
+	metadata[K Hashable, V any] struct {
 		keyshifts uintptr        //  array_size - log2(array_size)
 		count     atomicUintptr  // number of filled items
 		data      unsafe.Pointer // pointer to array of map indexes
@@ -39,35 +55,26 @@ type (
 		index []*element[K, V]
 	}
 
-	// Map implements the concurrent hashmap
-	Map[K hashable, V any] struct {
-		listHead   *element[K, V] // Harris lock-free list of elements in ascending order of hash
-		hasher     func(K) uintptr
-		comparator func(l, r K) bool
-		metadata   atomicPointer[metadata[K, V]] // atomic.Pointer for safe access even during resizing
-		resizing   atomicUint32
-		numItems   atomicUintptr
-	}
-
 	// used in deletion of map elements
-	deletionRequest[K hashable] struct {
+	deletionRequest[K Hashable] struct {
 		keyHash uintptr
 		key     K
 	}
 )
 
-// New returns a new HashMap instance with an optional specific initialization size
-func New[K hashable, V any](size ...uintptr) *Map[K, V] {
-	m := &Map[K, V]{}
-	m.listHead = newListHead[K, V](&m.comparator)
-	m.numItems.Store(0)
-	if len(size) > 0 {
-		m.allocate(size[0])
-	} else {
-		m.allocate(defaultSize)
+// New returns a new HashMap instance with any specified Option
+func New[K Hashable, V any](opts ...Option[K, V]) *Map[K, V] {
+	o := newOptions[K, V](opts...)
+
+	m := &Map[K, V]{
+		hasher:     o.hasher,
+		comparator: o.comparator,
 	}
-	m.setDefaultHasher()
-	m.comparator = defaultComparator[K]()
+	m.listHead = newListHead[K, V](m.comparator)
+	m.numItems.Store(0)
+
+	m.allocate(o.initialSize)
+
 	return m
 }
 
@@ -161,12 +168,12 @@ func (m *Map[K, V]) Set(key K, value V) {
 	if existing == nil || existing.keyHash > h {
 		existing = m.listHead
 	}
-	if alloc, created = existing.inject(h, key, valPtr, &m.comparator); alloc != nil {
+	if alloc, created = existing.inject(h, key, valPtr, m.comparator); alloc != nil {
 		if created {
 			m.numItems.Add(1)
 		}
 	} else {
-		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr, &m.comparator) {
+		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr, m.comparator) {
 		}
 		if created {
 			m.numItems.Add(1)
@@ -207,12 +214,12 @@ func (m *Map[K, V]) GetOrSet(key K, value V) (actual V, loaded bool) {
 	if existing == nil || existing.keyHash > h {
 		existing = m.listHead
 	}
-	if alloc, created = existing.inject(h, key, valPtr, &m.comparator); alloc != nil {
+	if alloc, created = existing.inject(h, key, valPtr, m.comparator); alloc != nil {
 		if created {
 			m.numItems.Add(1)
 		}
 	} else {
-		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr, &m.comparator) {
+		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr, m.comparator) {
 		}
 		if created {
 			m.numItems.Add(1)
@@ -254,12 +261,12 @@ func (m *Map[K, V]) GetOrCompute(key K, valueFn func() V) (actual V, loaded bool
 	if existing == nil || existing.keyHash > h {
 		existing = m.listHead
 	}
-	if alloc, created = existing.inject(h, key, valPtr, &m.comparator); alloc != nil {
+	if alloc, created = existing.inject(h, key, valPtr, m.comparator); alloc != nil {
 		if created {
 			m.numItems.Add(1)
 		}
 	} else {
-		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr, &m.comparator) {
+		for existing = m.listHead; alloc == nil; alloc, created = existing.inject(h, key, valPtr, m.comparator) {
 		}
 		if created {
 			m.numItems.Add(1)
@@ -346,17 +353,6 @@ func (m *Map[K, V]) Grow(newSize uintptr) {
 	if m.resizing.CompareAndSwap(notResizing, resizingInProgress) {
 		m.grow(newSize)
 	}
-}
-
-// SetHasher sets the hash function to the one provided by the user
-func (m *Map[K, V]) SetHasher(hs func(K) uintptr) {
-	m.hasher = hs
-}
-
-// SetComparator sets the function used for comparing keys to the
-// one provided by the user
-func (m *Map[K, V]) SetComparator(cmp func(l, r K) bool) {
-	m.comparator = cmp
 }
 
 // Len returns the number of key-value pairs within the map

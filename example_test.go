@@ -20,9 +20,13 @@ func customStringCompare(l, r string) bool {
 }
 
 func Example() {
-	m := haxxmap.New[string, string]()   // initialize a string-string map
-	m.SetHasher(customStringHasher)      // this overrides the default xxHash algorithm
-	m.SetComparator(customStringCompare) // this overrides the default key comparison function
+	// initialize a string-string map
+	m := haxxmap.New[string, string](
+		// this overrides the default xxHash algorithm
+		haxxmap.WithHasher[string, string](customStringHasher),
+		// this overrides the default key comparison function
+		haxxmap.WithComparator[string, string](customStringCompare),
+	)
 
 	m.Set("one", "1")
 	m.Set("Two", "2")

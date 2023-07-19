@@ -12,7 +12,7 @@ const (
 // Performance improvements suggested in https://arxiv.org/pdf/2010.15755.pdf were also added
 
 // newListHead returns the new head of any list
-func newListHead[K hashable, V any](cmp *func(l, r K) bool) *element[K, V] {
+func newListHead[K Hashable, V any](cmp EqualFn[K]) *element[K, V] {
 	e := &element[K, V]{keyHash: 0, key: *new(K), comparator: cmp}
 	e.nextPtr.Store(nil)
 	e.value.Store(new(V))
@@ -20,10 +20,10 @@ func newListHead[K hashable, V any](cmp *func(l, r K) bool) *element[K, V] {
 }
 
 // a single node in the list
-type element[K hashable, V any] struct {
+type element[K Hashable, V any] struct {
 	keyHash    uintptr
 	key        K
-	comparator *func(l, r K) bool
+	comparator EqualFn[K]
 	// The next element in the list. If this pointer has the marked flag set it means THIS element, not the next one, is deleted.
 	nextPtr atomicPointer[element[K, V]]
 	value   atomicPointer[V]
@@ -56,7 +56,7 @@ func (self *element[K, V]) addBefore(allocatedElement, before *element[K, V]) bo
 }
 
 // inject updates an existing value in the list if present or adds a new entry
-func (self *element[K, V]) inject(c uintptr, key K, value *V, cmp *func(l, r K) bool) (*element[K, V], bool) {
+func (self *element[K, V]) inject(c uintptr, key K, value *V, eq EqualFn[K]) (*element[K, V], bool) {
 	var (
 		alloc             *element[K, V]
 		left, curr, right = self.search(c, key)
@@ -66,7 +66,7 @@ func (self *element[K, V]) inject(c uintptr, key K, value *V, cmp *func(l, r K) 
 		return curr, false
 	}
 	if left != nil {
-		alloc = &element[K, V]{keyHash: c, key: key, comparator: cmp}
+		alloc = &element[K, V]{keyHash: c, key: key, comparator: eq}
 		alloc.value.Store(value)
 		if left.addBefore(alloc, right) {
 			return alloc, true
@@ -90,7 +90,7 @@ func (self *element[K, V]) search(c uintptr, key K) (*element[K, V], *element[K,
 			right = curr
 			curr = nil
 			return left, curr, right
-		} else if c == curr.keyHash && (*self.comparator)(key, curr.key) {
+		} else if c == curr.keyHash && self.comparator(key, curr.key) {
 			return left, curr, right
 		}
 		left = curr

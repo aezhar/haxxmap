@@ -47,7 +47,7 @@ func TestOverwrite(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	m := New[int, string](4)
+	m := New[int, string](WithInitialSize[int, string](4))
 
 	m.Set(4, "cat")
 	m.Set(3, "cat")
@@ -122,7 +122,7 @@ func TestGrow(t *testing.T) {
 
 func TestGrow2(t *testing.T) {
 	size := 64
-	m := New[int, any](uintptr(size))
+	m := New[int, any](WithInitialSize[int, any](uintptr(size)))
 	for i := 0; i < 10000; i++ {
 		m.Set(i, nil)
 		m.Del(i)
@@ -325,11 +325,14 @@ func TestMapConcurrentWrites(t *testing.T) {
 
 // Collision test case when hash key is 0 in value for all entries
 func TestHash0Collision(t *testing.T) {
-	m := New[string, int]()
 	staticHasher := func(key string) uintptr {
 		return 0
 	}
-	m.SetHasher(staticHasher)
+
+	m := New[string, int](
+		WithHasher[string, int](staticHasher),
+	)
+
 	m.Set("1", 1)
 	m.Set("2", 2)
 	_, ok := m.Get("1")
@@ -348,7 +351,7 @@ func TestHash0Collision(t *testing.T) {
 // Update:- Solved now
 func TestInfiniteLoop(t *testing.T) {
 	t.Run("infinite loop", func(b *testing.T) {
-		m := New[int, int](512)
+		m := New[int, int](WithInitialSize[int, int](512))
 		for i := 0; i < 112050; i++ {
 			if i > 112024 {
 				m.Set(i, i) // set debug point here and step into until .inject
@@ -404,10 +407,11 @@ func TestSwap(t *testing.T) {
 }
 
 func TestByteSliceKey(t *testing.T) {
-	m := New[[]byte, string]()
-	m.SetHasher(func(addr []byte) uintptr {
-		return uintptr(xxhash.Sum64(addr))
-	})
+	m := New[[]byte, string](
+		WithHasher[[]byte, string](func(addr []byte) uintptr {
+			return uintptr(xxhash.Sum64(addr))
+		}),
+	)
 
 	m.Set([]byte{0x00, 0x00, 0x5e, 0x00, 0x53, 0x01}, "hostA")
 	m.Set([]byte{0x00, 0x00, 0x5e, 0x00, 0x53, 0x02}, "hostB")

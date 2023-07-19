@@ -156,12 +156,12 @@ var (
 	}
 )
 
-func (m *Map[K, V]) setDefaultHasher() {
+func defaultHasher[K Hashable]() HashFn[K] {
 	// default hash functions
 	switch reflect.TypeOf(*new(K)).Kind() {
 	case reflect.String:
 		// use default xxHash algorithm for key of any size for golang string data type
-		m.hasher = func(key K) uintptr {
+		return func(key K) uintptr {
 			sh := (*reflect.StringHeader)(unsafe.Pointer(&key))
 			b := unsafe.Slice((*byte)(unsafe.Pointer(sh.Data)), sh.Len)
 			return uintptr(xxhash.Sum64(b))
@@ -170,38 +170,38 @@ func (m *Map[K, V]) setDefaultHasher() {
 		switch intSizeBytes {
 		case 2:
 			// word hasher
-			m.hasher = *(*func(K) uintptr)(unsafe.Pointer(&wordHasher))
+			return *(*func(K) uintptr)(unsafe.Pointer(&wordHasher))
 		case 4:
 			// dword hasher
-			m.hasher = *(*func(K) uintptr)(unsafe.Pointer(&dwordHasher))
+			return *(*func(K) uintptr)(unsafe.Pointer(&dwordHasher))
 		case 8:
 			// qword hasher
-			m.hasher = *(*func(K) uintptr)(unsafe.Pointer(&qwordHasher))
+			return *(*func(K) uintptr)(unsafe.Pointer(&qwordHasher))
 		}
 	case reflect.Int8, reflect.Uint8:
 		// byte hasher
-		m.hasher = *(*func(K) uintptr)(unsafe.Pointer(&byteHasher))
+		return *(*func(K) uintptr)(unsafe.Pointer(&byteHasher))
 	case reflect.Int16, reflect.Uint16:
 		// word hasher
-		m.hasher = *(*func(K) uintptr)(unsafe.Pointer(&wordHasher))
+		return *(*func(K) uintptr)(unsafe.Pointer(&wordHasher))
 	case reflect.Int32, reflect.Uint32:
 		// dword hasher
-		m.hasher = *(*func(K) uintptr)(unsafe.Pointer(&dwordHasher))
+		return *(*func(K) uintptr)(unsafe.Pointer(&dwordHasher))
 	case reflect.Float32:
 		// custom float32 dword hasher
-		m.hasher = *(*func(K) uintptr)(unsafe.Pointer(&float32Hasher))
+		return *(*func(K) uintptr)(unsafe.Pointer(&float32Hasher))
 	case reflect.Int64, reflect.Uint64:
 		// qword hasher
-		m.hasher = *(*func(K) uintptr)(unsafe.Pointer(&qwordHasher))
+		return *(*func(K) uintptr)(unsafe.Pointer(&qwordHasher))
 	case reflect.Float64:
 		// custom float64 qword hasher
-		m.hasher = *(*func(K) uintptr)(unsafe.Pointer(&float64Hasher))
+		return *(*func(K) uintptr)(unsafe.Pointer(&float64Hasher))
 	case reflect.Complex64:
 		// custom complex64 qword hasher
-		m.hasher = *(*func(K) uintptr)(unsafe.Pointer(&complex64Hasher))
+		return *(*func(K) uintptr)(unsafe.Pointer(&complex64Hasher))
 	case reflect.Complex128:
 		// oword hasher, key size -> 16 bytes
-		m.hasher = func(key K) uintptr {
+		return func(key K) uintptr {
 			b := *(*[owordSize]byte)(unsafe.Pointer(&key))
 			h := prime5 + 16
 
@@ -234,6 +234,8 @@ func (m *Map[K, V]) setDefaultHasher() {
 			return uintptr(h)
 		}
 	}
+
+	return nil
 }
 
 func comparator[T comparable](l, r T) bool { return l == r }
@@ -251,7 +253,7 @@ var (
 	complex128Comparator = comparator[complex128]
 )
 
-func defaultComparator[K any]() func(l, r K) bool {
+func defaultComparator[K Hashable]() func(l, r K) bool {
 	switch reflect.TypeOf(*new(K)).Kind() {
 	case reflect.String:
 		return *(*func(l, r K) bool)(unsafe.Pointer(&stringComparator))
