@@ -58,9 +58,7 @@ func main() {
 	// has better performance than deleting keys one by one
 	mep.Del(2, 3, 4)
 
-	if mep.Len() == 0 {
-		println("cleanup complete")
-	}
+	fmt.Println("entries left: ", mep.Len())
 }
 ```
 
@@ -78,12 +76,11 @@ All results are computed from [benchstat](https://pkg.go.dev/golang.org/x/perf/c
 ```
 cpu: AMD Ryzen 7 5800X 8-Core Processor
                        │   sec/op    │
-HaxMapReadsOnly-16       2.685µ ± 6%
-HaxxMapReadsOnly-16      3.412µ ± 3%
-GoSyncMapReadsOnly-16    10.57µ ± 2%
-CornelkMapReadsOnly-16   3.008µ ± 3%
-XsyncMapReadsOnly-16     2.127µ ± 4%
-
+HaxMapReadsOnly-16       2.627µ ± 2%
+HaxxMapReadsOnly-16      3.850µ ± 0%
+GoSyncMapReadsOnly-16    10.28µ ± 1%
+CornelkMapReadsOnly-16   2.997µ ± 2%
+XsyncMapReadsOnly-16     1.929µ ± 1%
 ```
 
 2. Concurrent Reads with Writes
@@ -97,18 +94,18 @@ CornelkMapReadsWithWrites-16   3.545µ ± 5%
 XsyncMapReadsWithWrites-16     2.373µ ± 1%
 
                              │     B/op      │
-HaxMapReadsWithWrites-16         260.0 ±  9%
-HaxxMapReadsWithWrites-16        332.0 ± 18%
-GoSyncMapReadsWithWrites-16    1.831Ki ± 12%
-CornelkMapReadsWithWrites-16     307.5 ± 12%
-XsyncMapReadsWithWrites-16       344.0 ± 10%
+HaxMapReadsWithWrites-16         339.5 ± 2%
+HaxxMapReadsWithWrites-16        444.5 ± 2%
+GoSyncMapReadsWithWrites-16    2.408Ki ± 3%
+CornelkMapReadsWithWrites-16     398.5 ± 2%
+XsyncMapReadsWithWrites-16       396.5 ± 3%
 
                              │  allocs/op  │
-HaxMapReadsWithWrites-16       32.50 ± 11%
-HaxxMapReadsWithWrites-16      41.00 ± 17%
-GoSyncMapReadsWithWrites-16    173.5 ± 12%
-CornelkMapReadsWithWrites-16   38.00 ± 11%
-XsyncMapReadsWithWrites-16     21.00 ± 10%
+HaxMapReadsWithWrites-16       42.00 ± 2%
+HaxxMapReadsWithWrites-16      55.00 ± 2%
+GoSyncMapReadsWithWrites-16    228.5 ± 3%
+CornelkMapReadsWithWrites-16   49.00 ± 2%
+XsyncMapReadsWithWrites-16     24.00 ± 4%
 
 ```
 
@@ -139,13 +136,27 @@ func customStringCompare(l, r string) bool {
 }
 
 func main() {
-	m := haxxmap.New[string, string]()   // initialize a string-string map
-	m.SetHasher(customStringHasher)      // this overrides the default xxHash algorithm
-	m.SetComparator(customStringCompare) // this overrides the default key comparison function
+	// initialize a string-string map
+	m := haxxmap.New[string, string](
+		// this overrides the default xxHash algorithm
+		haxxmap.WithHasher[string, string](customStringHasher),
+		// this overrides the default key comparison function
+		haxxmap.WithComparator[string, string](customStringCompare),
+	)
 
 	m.Set("one", "1")
+	m.Set("Two", "2")
+	m.Set("three", "3")
 
 	if val, ok := m.Get("One"); ok {
+		fmt.Println(val)
+	}
+
+	if val, ok := m.Get("two"); ok {
+		fmt.Println(val)
+	}
+
+	if val, ok := m.Get("three"); ok {
 		fmt.Println(val)
 	}
 }
@@ -167,7 +178,7 @@ func main() {
 
 	// pre-allocating the size of the map will prevent all grow operations
 	// until that limit is hit thereby improving performance
-	m := haxxmap.New[int, string](initialSize)
+	m := haxxmap.New[int, string](haxxmap.WithInitialSize[int, string](initialSize))
 
 	m.Set(1, "1")
 
