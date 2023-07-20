@@ -25,7 +25,9 @@ func setupHaxMap() *haxmap.Map[uintptr, uintptr] {
 }
 
 func setupHaxxMap() *haxxmap.Map[uintptr, uintptr] {
-	m := haxxmap.New[uintptr, uintptr](mapSize)
+	m := haxxmap.New[uintptr, uintptr](
+		haxxmap.WithInitialSize[uintptr, uintptr](mapSize),
+	)
 	for i := uintptr(0); i < epochs; i++ {
 		m.Set(i, i)
 	}
