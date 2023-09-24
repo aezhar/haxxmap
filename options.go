@@ -8,8 +8,16 @@ type Options[K Hashable, V any] struct {
 
 func (c *Options[K, V]) init() {
 	c.initialSize = defaultSize
-	c.hasher = defaultHasher[K]()
-	c.comparator = defaultComparator[K]()
+}
+
+func (c *Options[K, V]) setDefaults() {
+	if c.hasher == nil {
+		c.hasher = defaultHasher[K]()
+	}
+
+	if c.comparator == nil {
+		c.comparator = defaultComparator[K]()
+	}
 }
 
 // Option changes the behavior of the hashmap
@@ -43,6 +51,8 @@ func newOptions[K Hashable, V any](opts ...Option[K, V]) Options[K, V] {
 	for _, opt := range opts {
 		opt(&c)
 	}
+
+	c.setDefaults()
 
 	return c
 }
